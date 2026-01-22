@@ -25,6 +25,10 @@ export function ChatContainer({
     }
   }, [messages]);
 
+  const handleExampleClick = (query: string) => {
+    onSendMessage(query);
+  };
+
   return (
     <div className="flex h-full flex-col">
       <ScrollArea className="flex-1" ref={scrollRef}>
@@ -42,9 +46,18 @@ export function ChatContainer({
                 Ask any question in natural language.
               </p>
               <div className="grid w-full max-w-lg gap-3">
-                <ExampleQuery query="What is Section 16 of the CGST Act?" />
-                <ExampleQuery query="Explain the Income Tax Act provisions for salaried employees" />
-                <ExampleQuery query="What are the penalties under FEMA for unauthorized transactions?" />
+                <ExampleQuery
+                  query="What is Section 16 of the CGST Act?"
+                  onClick={handleExampleClick}
+                />
+                <ExampleQuery
+                  query="Explain the Income Tax Act provisions for salaried employees"
+                  onClick={handleExampleClick}
+                />
+                <ExampleQuery
+                  query="What are the penalties under FEMA for unauthorized transactions?"
+                  onClick={handleExampleClick}
+                />
               </div>
             </div>
           ) : (
@@ -77,10 +90,17 @@ export function ChatContainer({
   );
 }
 
-function ExampleQuery({ query }: { query: string }) {
+function ExampleQuery({
+  query,
+  onClick,
+}: {
+  query: string;
+  onClick: (query: string) => void;
+}) {
   return (
     <button
       type="button"
+      onClick={() => onClick(query)}
       className="rounded-xl border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       "{query}"

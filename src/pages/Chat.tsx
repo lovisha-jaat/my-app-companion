@@ -2,10 +2,13 @@ import { useState, useCallback } from "react";
 import { ChatContainer, Message } from "@/components/chat";
 import { Scale, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { classifyQuery } from "@/lib/classify-query";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSendMessage = useCallback(async (content: string) => {
     const userMessage: Message = {
@@ -18,23 +21,60 @@ export default function Chat() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Placeholder for AI response - will be integrated with backend later
-    setTimeout(() => {
+    try {
+      // Step 2: Classify the query
+      const classification = await classifyQuery(content);
+
+      // Update the user message with classification
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === userMessage.id ? { ...msg, classification } : msg
+        )
+      );
+
+      // Placeholder response - will be replaced with RAG in later steps
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content:
-          "Thank you for your query. This is a placeholder response. The AI integration will be implemented in the next step to provide verified legal information from official government sources.",
+        content: `I've classified your query as:
+
+**Domain:** ${classification.domain.toUpperCase()}
+**Type:** ${classification.queryType}
+**Confidence:** ${classification.confidence}
+**Keywords:** ${classification.keywords.join(", ")}
+
+The full AI response with verified legal information will be implemented in the next step.`,
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Error processing message:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process your query",
+        variant: "destructive",
+      });
+
+      // Still add a fallback response
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "I apologize, but I encountered an error processing your query. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
-  }, []);
+    }
+  }, [toast]);
 
   const handleFileUpload = () => {
     // Will be implemented for document upload feature
-    console.log("File upload clicked");
+    toast({
+      title: "Coming Soon",
+      description: "Document upload will be available in a future update.",
+    });
   };
 
   return (
