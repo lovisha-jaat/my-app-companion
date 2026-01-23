@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { ChatContainer, Message } from "@/components/chat";
+import { DocumentUploadDialog } from "@/components/chat/DocumentUploadDialog";
 import { Scale, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { classifyQuery } from "@/lib/classify-query";
@@ -9,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // Build conversation history for context
@@ -41,7 +43,7 @@ export default function Chat() {
         )
       );
 
-      // Step 2: Generate AI response using ruleX persona
+      // Step 2: Generate AI response using ruleX persona with RAG
       const result = await generateResponse({
         query: content,
         classification,
@@ -78,10 +80,13 @@ export default function Chat() {
   }, [toast, conversationHistory]);
 
   const handleFileUpload = () => {
-    // Will be implemented for document upload feature
+    setUploadDialogOpen(true);
+  };
+
+  const handleUploadComplete = () => {
     toast({
-      title: "Coming Soon",
-      description: "Document upload will be available in a future update.",
+      title: "Knowledge Base Updated",
+      description: "Your document has been added. You can now ask questions about it.",
     });
   };
 
@@ -116,6 +121,13 @@ export default function Chat() {
           isLoading={isLoading}
         />
       </main>
+
+      {/* Document Upload Dialog */}
+      <DocumentUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onUploadComplete={handleUploadComplete}
+      />
     </div>
   );
 }
