@@ -1,10 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Allowed origins for CORS - restrict to known domains
+const ALLOWED_ORIGINS = [
+  "https://id-preview--d30362a9-9f2d-4032-855c-aa87685be3dc.lovable.app",
+  "http://localhost:8080",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
 
 interface ClassificationResult {
   domain: "finance" | "gst" | "civil" | "criminal" | "other";
@@ -13,7 +25,14 @@ interface ClassificationResult {
   keywords: string[];
 }
 
+// Input validation constants
+const MIN_QUERY_LENGTH = 3;
+const MAX_QUERY_LENGTH = 1000;
+
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -23,7 +42,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Authentication required", code: "AUTH_REQUIRED" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -39,23 +58,51 @@ serve(async (req) => {
     
     if (claimsError || !claimsData?.claims) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Invalid or expired session", code: "AUTH_INVALID" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const { query } = await req.json();
 
+    // Input validation - check type
     if (!query || typeof query !== "string") {
       return new Response(
-        JSON.stringify({ error: "Query is required" }),
+        JSON.stringify({ error: "Query is required", code: "QUERY_MISSING" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Input validation - trim and check length
+    const trimmedQuery = query.trim();
+    
+    if (trimmedQuery.length < MIN_QUERY_LENGTH) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Query must be at least ${MIN_QUERY_LENGTH} characters`, 
+          code: "QUERY_TOO_SHORT" 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (trimmedQuery.length > MAX_QUERY_LENGTH) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Query exceeds maximum length of ${MAX_QUERY_LENGTH} characters`, 
+          code: "QUERY_TOO_LONG" 
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("LOVABLE_API_KEY is not configured");
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable", code: "SERVICE_ERROR" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -92,7 +139,7 @@ Extract relevant legal keywords from the query.`,
           },
           {
             role: "user",
-            content: query,
+            content: trimmedQuery,
           },
         ],
         tools: [
@@ -138,38 +185,54 @@ Extract relevant legal keywords from the query.`,
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          JSON.stringify({ error: "Rate limit exceeded. Please try again later.", code: "RATE_LIMIT" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "API credits exhausted. Please add funds." }),
+          JSON.stringify({ error: "Service quota exceeded. Please try again later.", code: "QUOTA_EXCEEDED" }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      // Log detailed error server-side only
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
-      throw new Error("Failed to classify query");
+      
+      // Return generic error to client
+      return new Response(
+        JSON.stringify({ error: "Unable to process your query. Please try again.", code: "PROCESSING_ERROR" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall || toolCall.function.name !== "classify_query") {
-      throw new Error("Invalid response from AI");
+      console.error("Invalid AI response structure:", JSON.stringify(data));
+      return new Response(
+        JSON.stringify({ error: "Unable to classify your query. Please try again.", code: "CLASSIFICATION_ERROR" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const classification: ClassificationResult = JSON.parse(toolCall.function.arguments);
 
     return new Response(
-      JSON.stringify({ classification, query }),
+      JSON.stringify({ classification, query: trimmedQuery }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    // Log detailed error server-side only
     console.error("Classification error:", error);
+    
+    // Return safe, generic message to client
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Classification failed" }),
+      JSON.stringify({ 
+        error: "Unable to process your query. Please try again.", 
+        code: "INTERNAL_ERROR" 
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
