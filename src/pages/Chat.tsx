@@ -1,14 +1,23 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { ChatContainer, Message } from "@/components/chat";
 import { Scale, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { classifyQuery } from "@/lib/classify-query";
+import { generateResponse } from "@/lib/generate-response";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Build conversation history for context
+  const conversationHistory = useMemo(() => {
+    return messages.map((msg) => ({
+      role: msg.role as "user" | "assistant",
+      content: msg.content,
+    }));
+  }, [messages]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     const userMessage: Message = {
@@ -22,7 +31,7 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      // Step 2: Classify the query
+      // Step 1: Classify the query
       const classification = await classifyQuery(content);
 
       // Update the user message with classification
@@ -32,18 +41,17 @@ export default function Chat() {
         )
       );
 
-      // Placeholder response - will be replaced with RAG in later steps
+      // Step 2: Generate AI response using ruleX persona
+      const result = await generateResponse({
+        query: content,
+        classification,
+        conversationHistory,
+      });
+
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: `I've classified your query as:
-
-**Domain:** ${classification.domain.toUpperCase()}
-**Type:** ${classification.queryType}
-**Confidence:** ${classification.confidence}
-**Keywords:** ${classification.keywords.join(", ")}
-
-The full AI response with verified legal information will be implemented in the next step.`,
+        content: result.response,
         timestamp: new Date(),
       };
 
@@ -67,7 +75,7 @@ The full AI response with verified legal information will be implemented in the 
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, conversationHistory]);
 
   const handleFileUpload = () => {
     // Will be implemented for document upload feature
