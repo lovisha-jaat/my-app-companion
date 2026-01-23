@@ -2,3 +2,6 @@ project_id = "sdbmnevfqxmwhbwbdxmo"
 
 [functions.classify-query]
 verify_jwt = false
+
+[functions.generate-response]
+verify_jwt = false
