@@ -14,15 +14,21 @@ export interface ClassifyQueryResponse {
   query: string;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+import { supabase } from "@/integrations/supabase/client";
 
 export async function classifyQuery(query: string): Promise<QueryClassification> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/classify-query`, {
+  // Get the current session token for authenticated requests
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session?.access_token) {
+    throw new Error("Authentication required");
+  }
+
+  const response = await fetch(`https://sdbmnevfqxmwhbwbdxmo.supabase.co/functions/v1/classify-query`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Authorization: `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({ query }),
   });
