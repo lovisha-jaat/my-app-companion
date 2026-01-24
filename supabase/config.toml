@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.search-documents]
 verify_jwt = false
+
+[functions.scrape-legal-site]
+verify_jwt = false
+
+[functions.indian-kanoon-search]
+verify_jwt = false
