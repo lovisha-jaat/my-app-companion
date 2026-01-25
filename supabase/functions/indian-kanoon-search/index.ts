@@ -47,28 +47,8 @@ function chunkText(text: string, chunkSize = 1000, overlap = 200): string[] {
   return chunks;
 }
 
-async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "openai/text-embedding-3-small",
-      input: text,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("Embedding error:", error);
-    throw new Error("Failed to generate embedding");
-  }
-
-  const data = await response.json();
-  return data.data[0].embedding;
-}
+// Note: Embeddings are not generated as the AI gateway doesn't support embedding models
+// Content will be stored without embeddings and can be searched via text matching
 
 interface IndianKanoonResult {
   tid: string;
@@ -105,7 +85,6 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const indianKanoonApiKey = Deno.env.get("INDIAN_KANOON_API_KEY");
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
     // Verify user token
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -170,7 +149,7 @@ Deno.serve(async (req) => {
     console.log(`Found ${results.length} results from Indian Kanoon`);
 
     // If ingestToKnowledgeBase is true, fetch full documents and add to knowledge base
-    if (ingestToKnowledgeBase && results.length > 0 && lovableApiKey) {
+    if (ingestToKnowledgeBase && results.length > 0) {
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -215,40 +194,32 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Chunk and embed
+          // Chunk content without embeddings
           const chunks = chunkText(fullText);
           const chunkRecords: Array<{
             document_id: string;
             user_id: string;
             content: string;
             chunk_index: number;
-            embedding: string;
             metadata: Record<string, unknown>;
           }> = [];
 
           for (let i = 0; i < chunks.length; i++) {
-            try {
-              const embedding = await generateEmbedding(chunks[i], lovableApiKey);
-              
-              chunkRecords.push({
-                document_id: document.id,
-                user_id: user.id,
-                content: chunks[i],
-                chunk_index: i,
-                embedding: JSON.stringify(embedding),
-                metadata: {
-                  source_url: `https://indiankanoon.org/doc/${result.tid}/`,
-                  title: docTitle,
-                  source_type: "indian_kanoon",
-                  citation: result.citation,
-                  docsource: result.docsource,
-                  publishdate: result.publishdate,
-                  chunk_of: chunks.length,
-                },
-              });
-            } catch (e) {
-              console.error(`Embedding error for chunk ${i}:`, e);
-            }
+            chunkRecords.push({
+              document_id: document.id,
+              user_id: user.id,
+              content: chunks[i],
+              chunk_index: i,
+              metadata: {
+                source_url: `https://indiankanoon.org/doc/${result.tid}/`,
+                title: docTitle,
+                source_type: "indian_kanoon",
+                citation: result.citation,
+                docsource: result.docsource,
+                publishdate: result.publishdate,
+                chunk_of: chunks.length,
+              },
+            });
           }
 
           if (chunkRecords.length > 0) {

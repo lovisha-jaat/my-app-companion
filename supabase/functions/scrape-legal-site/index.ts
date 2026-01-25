@@ -68,28 +68,8 @@ function chunkText(text: string, chunkSize = 1000, overlap = 200): string[] {
   return chunks;
 }
 
-async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "openai/text-embedding-3-small",
-      input: text,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("Embedding error:", error);
-    throw new Error("Failed to generate embedding");
-  }
-
-  const data = await response.json();
-  return data.data[0].embedding;
-}
+// Note: Embeddings are not generated as the AI gateway doesn't support embedding models
+// Content will be stored without embeddings and can be searched via text matching
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -129,18 +109,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
     if (!firecrawlApiKey) {
       return new Response(
         JSON.stringify({ success: false, error: "Firecrawl not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!lovableApiKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Lovable API not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -243,33 +215,25 @@ Deno.serve(async (req) => {
       user_id: string;
       content: string;
       chunk_index: number;
-      embedding: string;
       metadata: Record<string, unknown>;
     }> = [];
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       
-      try {
-        const embedding = await generateEmbedding(chunk, lovableApiKey);
-        
-        chunkRecords.push({
-          document_id: document.id,
-          user_id: user.id,
-          content: chunk,
-          chunk_index: i,
-          embedding: JSON.stringify(embedding),
-          metadata: {
-            source_url: formattedUrl,
-            page_title: pageTitle,
-            source_type: "web_scrape",
-            domain: new URL(formattedUrl).hostname,
-            chunk_of: chunks.length,
-          },
-        });
-      } catch (embError) {
-        console.error(`Failed to embed chunk ${i}:`, embError);
-      }
+      chunkRecords.push({
+        document_id: document.id,
+        user_id: user.id,
+        content: chunk,
+        chunk_index: i,
+        metadata: {
+          source_url: formattedUrl,
+          page_title: pageTitle,
+          source_type: "web_scrape",
+          domain: new URL(formattedUrl).hostname,
+          chunk_of: chunks.length,
+        },
+      });
     }
 
     if (chunkRecords.length === 0) {
