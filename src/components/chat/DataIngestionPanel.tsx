@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { scrapeLegalSite, searchIndianKanoon, ALLOWED_LEGAL_SITES } from "@/lib/api/legal-data";
-import { Globe, Search, FileText, Loader2, ExternalLink, CheckCircle, AlertCircle } from "lucide-react";
+import { scrapeLegalSite, searchDataGovIn, ALLOWED_LEGAL_SITES } from "@/lib/api/legal-data";
+import { Globe, Search, FileText, Loader2, CheckCircle, AlertCircle, Database } from "lucide-react";
 
 interface IngestResult {
   type: "scrape" | "search";
@@ -19,7 +19,7 @@ interface IngestResult {
 export function DataIngestionPanel() {
   const { toast } = useToast();
   const [scrapeUrl, setScrapeUrl] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [resourceId, setResourceId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<IngestResult[]>([]);
 
@@ -66,45 +66,43 @@ export function DataIngestionPanel() {
     }
   };
 
-  const handleSearch = async (ingest: boolean = false) => {
-    if (!searchQuery.trim()) return;
+  const handleDataGovSearch = async (ingest: boolean = false) => {
+    if (!resourceId.trim()) return;
     
     setIsLoading(true);
     try {
-      const result = await searchIndianKanoon({ 
-        query: searchQuery, 
-        ingestToKnowledgeBase: ingest 
+      const result = await searchDataGovIn({ 
+        resourceId: resourceId.trim(),
+        ingestToKnowledgeBase: ingest,
+        limit: 100,
       });
       
       if (result.success && result.data) {
         if (result.data.message) {
           toast({
-            title: "API Not Configured",
-            description: result.data.alternative,
+            title: "Information",
+            description: result.data.message,
           });
-        } else if (ingest && result.data.ingested) {
-          result.data.ingested.forEach(title => {
-        setResults(prev => [{
+        } else if (result.data.records) {
+          const recordCount = result.data.records.length;
+          
+          if (ingest) {
+            setResults(prev => [{
               type: "search",
-              title,
+              title: result.data!.title || resourceId,
               status: "success",
-              message: "Added to knowledge base from Indian Kanoon",
+              message: `Added ${recordCount} records from data.gov.in`,
             }, ...prev]);
-          });
+          }
           
           toast({
-            title: "Documents ingested",
-            description: `${result.data.ingested.length} documents added to knowledge base`,
-          });
-        } else {
-          toast({
-            title: "Search complete",
-            description: `Found ${result.data.total_results} results`,
+            title: ingest ? "Data ingested" : "Data fetched",
+            description: `${recordCount} records ${ingest ? 'added to knowledge base' : 'found'}`,
           });
         }
       } else {
         toast({
-          title: "Search failed",
+          title: "Fetch failed",
           description: result.error,
           variant: "destructive",
         });
@@ -112,7 +110,7 @@ export function DataIngestionPanel() {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Search failed",
+        description: error instanceof Error ? error.message : "Failed to fetch data",
         variant: "destructive",
       });
     } finally {
@@ -138,9 +136,9 @@ export function DataIngestionPanel() {
               <Globe className="h-4 w-4" />
               Web Scrape
             </TabsTrigger>
-            <TabsTrigger value="search" className="gap-2">
-              <Search className="h-4 w-4" />
-              Indian Kanoon
+            <TabsTrigger value="datagov" className="gap-2">
+              <Database className="h-4 w-4" />
+              Data.gov.in
             </TabsTrigger>
           </TabsList>
 
@@ -179,24 +177,53 @@ export function DataIngestionPanel() {
             </div>
           </TabsContent>
 
-          <TabsContent value="search" className="space-y-4 mt-4">
+          <TabsContent value="datagov" className="space-y-4 mt-4">
             <div className="flex gap-2">
               <Input
-                placeholder="Search Acts, Sections, Case Laws..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Resource ID (e.g., 9ef84268-d588-465a-a308-a864a43d0070)"
+                value={resourceId}
+                onChange={(e) => setResourceId(e.target.value)}
                 disabled={isLoading}
               />
               <Button 
-                onClick={() => handleSearch(true)}
-                disabled={isLoading || !searchQuery.trim()}
+                onClick={() => handleDataGovSearch(true)}
+                disabled={isLoading || !resourceId.trim()}
               >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search & Add"}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Fetch & Add"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Search Indian Kanoon and add relevant documents to your knowledge base
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Enter a resource ID from data.gov.in to fetch and add to your knowledge base.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Find resource IDs at{" "}
+                <a 
+                  href="https://data.gov.in/catalogs" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  data.gov.in/catalogs
+                </a>
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <Badge 
+                  variant="outline"
+                  className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
+                  onClick={() => setResourceId("9ef84268-d588-465a-a308-a864a43d0070")}
+                >
+                  Pin Codes
+                </Badge>
+                <Badge 
+                  variant="outline"
+                  className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
+                  onClick={() => setResourceId("6176ee09-3d56-4a3b-8115-21841576b2f6")}
+                >
+                  Bank Branches
+                </Badge>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

@@ -1,4 +1,7 @@
 project_id = "sdbmnevfqxmwhbwbdxmo"
+[functions.data-gov-in-search]
+verify_jwt = false
+
 
 [functions.classify-query]
 verify_jwt = false

@@ -16,31 +16,30 @@ export interface ScrapeLegalSiteResult {
   };
 }
 
-export interface IndianKanoonSearchParams {
-  query: string;
-  pagenum?: number;
+export interface DataGovSearchParams {
+  resourceId?: string;
+  query?: string;
+  limit?: number;
+  offset?: number;
   ingestToKnowledgeBase?: boolean;
 }
 
-export interface IndianKanoonResult {
-  id: string;
-  title: string;
-  headline?: string;
-  source?: string;
-  date?: string;
-  citation?: string;
-  url: string;
-}
-
-export interface IndianKanoonSearchResult {
+export interface DataGovSearchResult {
   success: boolean;
   error?: string;
   data?: {
-    results: IndianKanoonResult[];
-    ingested?: string[];
-    total_results: number;
+    index_name?: string;
+    title?: string;
+    description?: string;
+    org?: string[];
+    sector?: string[];
+    source?: string;
+    total?: number;
+    records?: Record<string, unknown>[];
+    ingested?: boolean;
     message?: string;
-    alternative?: string;
+    instructions?: string[];
+    example_resources?: { id: string; name: string }[];
   };
 }
 
@@ -90,9 +89,9 @@ export async function scrapeLegalSite(
   return data;
 }
 
-export async function searchIndianKanoon(
-  params: IndianKanoonSearchParams
-): Promise<IndianKanoonSearchResult> {
+export async function searchDataGovIn(
+  params: DataGovSearchParams
+): Promise<DataGovSearchResult> {
   const { data: { session } } = await supabase.auth.getSession();
   
   if (!session?.access_token) {
@@ -100,7 +99,7 @@ export async function searchIndianKanoon(
   }
 
   const response = await fetch(
-    `https://sdbmnevfqxmwhbwbdxmo.supabase.co/functions/v1/indian-kanoon-search`,
+    `https://sdbmnevfqxmwhbwbdxmo.supabase.co/functions/v1/data-gov-in-search`,
     {
       method: "POST",
       headers: {
@@ -116,7 +115,7 @@ export async function searchIndianKanoon(
   if (!response.ok) {
     return {
       success: false,
-      error: data.error || "Failed to search Indian Kanoon",
+      error: data.error || "Failed to fetch from data.gov.in",
     };
   }
 
