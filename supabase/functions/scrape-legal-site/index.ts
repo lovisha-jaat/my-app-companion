@@ -14,7 +14,7 @@ const ALLOWED_DOMAINS = [
   "mca.gov.in",
   "legislative.gov.in",
   "doj.gov.in",
-  "egazette.nic.in",
+  "egazette.gov.in",
   "lawmin.gov.in",
 ];
 
@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
         url: formattedUrl,
         formats: ['markdown'],
         onlyMainContent: true,
-       // No waitFor - government sites are static HTML
+        // No waitFor - government sites are static HTML
       }),
     });
 

@@ -52,7 +52,7 @@ export const ALLOWED_LEGAL_SITES = [
   { domain: "mca.gov.in", name: "MCA", description: "Ministry of Corporate Affairs" },
   { domain: "legislative.gov.in", name: "Legislative Dept", description: "Department of Legislative Affairs" },
   { domain: "doj.gov.in", name: "Dept of Justice", description: "Department of Justice" },
-  { domain: "egazette.nic.in", name: "e-Gazette", description: "Official Gazette of India" },
+  { domain: "egazette.gov.in", name: "e-Gazette", description: "Official Gazette of India" },
   { domain: "lawmin.gov.in", name: "Law Ministry", description: "Ministry of Law and Justice" },
 ];
 
