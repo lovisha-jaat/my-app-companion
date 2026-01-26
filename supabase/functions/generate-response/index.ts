@@ -63,27 +63,74 @@ interface DocumentChunk {
   document_filename?: string;
 }
 
-// Generate embeddings using Lovable AI Gateway
-async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "openai/text-embedding-3-small",
-      input: text,
-    }),
-  });
+// Text-based search using keywords (embeddings not supported by AI gateway)
+async function searchDocumentChunks(
+  supabase: any,
+  userId: string,
+  keywords: string[]
+): Promise<DocumentChunk[]> {
+  // Build search query from keywords
+  const searchTerms = keywords
+    .filter(k => k.length > 2)
+    .map(k => k.toLowerCase())
+    .join(" | ");
+  
+  if (!searchTerms) return [];
 
-  if (!response.ok) {
-    console.error("Embedding error:", await response.text());
-    return [];
+  // Search using PostgreSQL full-text search with to_tsquery
+  const { data: chunks, error } = await supabase
+    .from("document_chunks")
+    .select(`
+      id,
+      document_id,
+      content,
+      metadata,
+      documents!inner(filename)
+    `)
+    .eq("user_id", userId)
+    .textSearch("content", searchTerms, { type: "websearch", config: "english" })
+    .limit(10);
+
+  if (error) {
+    console.error("Text search error:", error);
+    
+    // Fallback: simple ILIKE search
+    const { data: fallbackChunks, error: fallbackError } = await supabase
+      .from("document_chunks")
+      .select(`
+        id,
+        document_id,
+        content,
+        metadata,
+        documents!inner(filename)
+      `)
+      .eq("user_id", userId)
+      .or(keywords.map(k => `content.ilike.%${k}%`).join(","))
+      .limit(10);
+    
+    if (fallbackError) {
+      console.error("Fallback search error:", fallbackError);
+      return [];
+    }
+    
+    return (fallbackChunks || []).map((c: any) => ({
+      id: c.id,
+      document_id: c.document_id,
+      content: c.content,
+      metadata: c.metadata,
+      similarity: 0.5,
+      document_filename: c.documents?.filename || "Unknown",
+    }));
   }
 
-  const data = await response.json();
-  return data.data[0].embedding;
+  return (chunks || []).map((c: any) => ({
+    id: c.id,
+    document_id: c.document_id,
+    content: c.content,
+    metadata: c.metadata,
+    similarity: 0.7, // Estimated similarity for text search
+    document_filename: c.documents?.filename || "Unknown",
+  }));
 }
 
 serve(async (req) => {
@@ -170,42 +217,23 @@ serve(async (req) => {
       );
     }
 
-    // RAG: Search for relevant document chunks
+    // RAG: Search for relevant document chunks using text search
     let contextChunks: DocumentChunk[] = [];
     let contextText = "";
     
     try {
-      const queryEmbedding = await generateEmbedding(trimmedQuery, LOVABLE_API_KEY);
+      // Use classification keywords for text-based search
+      const searchKeywords = classification.keywords.length > 0 
+        ? classification.keywords 
+        : trimmedQuery.split(/\s+/).filter(w => w.length > 2);
       
-      if (queryEmbedding.length > 0) {
-        const { data: chunks, error: searchError } = await supabase
-          .rpc("match_document_chunks", {
-            query_embedding: JSON.stringify(queryEmbedding),
-            match_threshold: 0.65,
-            match_count: 5,
-            p_user_id: userId,
-          });
+      contextChunks = await searchDocumentChunks(supabase, userId, searchKeywords);
 
-        if (!searchError && chunks && chunks.length > 0) {
-          // Get document filenames
-          const documentIds = [...new Set(chunks.map((c: DocumentChunk) => c.document_id))];
-          const { data: docs } = await supabase
-            .from("documents")
-            .select("id, filename")
-            .in("id", documentIds);
-          
-          const docMap = docs ? Object.fromEntries(docs.map(d => [d.id, d.filename])) : {};
-          
-          contextChunks = chunks.map((chunk: DocumentChunk) => ({
-            ...chunk,
-            document_filename: docMap[chunk.document_id] || "Unknown",
-          }));
-
-          // Build context text
-          contextText = contextChunks
-            .map((c, i) => `[Source ${i + 1}: ${c.document_filename}]\n${c.content}`)
-            .join("\n\n---\n\n");
-        }
+      if (contextChunks.length > 0) {
+        // Build context text
+        contextText = contextChunks
+          .map((c, i) => `[Source ${i + 1}: ${c.document_filename}]\n${c.content}`)
+          .join("\n\n---\n\n");
       }
     } catch (ragError) {
       console.error("RAG search error:", ragError);
