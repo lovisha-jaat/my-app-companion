@@ -148,7 +148,8 @@ Deno.serve(async (req) => {
         url: formattedUrl,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000, // Wait for dynamic content
+        waitFor: 30000, // Wait 30 seconds for slow government sites
+        timeout: 60000, // 60 second overall timeout
       }),
     });
 
