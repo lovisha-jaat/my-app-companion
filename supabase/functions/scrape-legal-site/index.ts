@@ -16,6 +16,7 @@ const ALLOWED_DOMAINS = [
   "doj.gov.in",
   "egazette.nic.in",
   "lawmin.gov.in",
+  "data.gov.in",
 ];
 
 function isAllowedDomain(url: string): boolean {

@@ -54,6 +54,7 @@ export const ALLOWED_LEGAL_SITES = [
   { domain: "doj.gov.in", name: "Dept of Justice", description: "Department of Justice" },
   { domain: "egazette.nic.in", name: "e-Gazette", description: "Official Gazette of India" },
   { domain: "lawmin.gov.in", name: "Law Ministry", description: "Ministry of Law and Justice" },
+  { domain: "data.gov.in", name: "Data.gov.in", description: "Open Government Data Platform India" },
 ];
 
 export async function scrapeLegalSite(
