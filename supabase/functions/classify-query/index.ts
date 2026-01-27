@@ -90,18 +90,29 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `You are a legal query classifier for Indian laws. Your job is to analyze user queries and classify them accurately.
+    // Retry logic for transient AI gateway failures
+    const maxRetries = 2;
+    let lastError: string | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        console.log(`Retry attempt ${attempt} for classify-query`);
+      }
+      
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: `You are a legal query classifier for Indian laws. Your job is to analyze user queries and classify them accurately.
 
 Legal Domains:
 - finance: Income Tax, Banking regulations, Securities, Investment laws, Corporate finance
@@ -121,92 +132,110 @@ Confidence Levels:
 - low: Query is vague or spans multiple domains
 
 Extract relevant legal keywords from the query.`,
-          },
-          {
-            role: "user",
-            content: trimmedQuery,
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "classify_query",
-              description: "Classify the legal query into domain, type, and confidence level",
-              parameters: {
-                type: "object",
-                properties: {
-                  domain: {
-                    type: "string",
-                    enum: ["finance", "gst", "civil", "criminal", "other"],
-                    description: "The legal domain of the query",
+            },
+            {
+              role: "user",
+              content: trimmedQuery,
+            },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "classify_query",
+                description: "Classify the legal query into domain, type, and confidence level",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    domain: {
+                      type: "string",
+                      enum: ["finance", "gst", "civil", "criminal", "other"],
+                      description: "The legal domain of the query",
+                    },
+                    queryType: {
+                      type: "string",
+                      enum: ["informational", "decision", "document"],
+                      description: "The type of query",
+                    },
+                    confidence: {
+                      type: "string",
+                      enum: ["high", "medium", "low"],
+                      description: "Confidence level in the classification",
+                    },
+                    keywords: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Relevant legal keywords extracted from the query",
+                    },
                   },
-                  queryType: {
-                    type: "string",
-                    enum: ["informational", "decision", "document"],
-                    description: "The type of query",
-                  },
-                  confidence: {
-                    type: "string",
-                    enum: ["high", "medium", "low"],
-                    description: "Confidence level in the classification",
-                  },
-                  keywords: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Relevant legal keywords extracted from the query",
-                  },
+                  required: ["domain", "queryType", "confidence", "keywords"],
+                  additionalProperties: false,
                 },
-                required: ["domain", "queryType", "confidence", "keywords"],
-                additionalProperties: false,
               },
             },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "classify_query" } },
-      }),
-    });
+          ],
+          tool_choice: { type: "function", function: { name: "classify_query" } },
+        }),
+      });
 
-    if (!response.ok) {
-      if (response.status === 429) {
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded. Please try again later.", code: "RATE_LIMIT" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "Service quota exceeded. Please try again later.", code: "QUOTA_EXCEEDED" }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        // For 500 errors, retry
+        const errorText = await response.text();
+        console.error(`AI gateway error (attempt ${attempt}):`, response.status, errorText);
+        lastError = errorText;
+        
+        if (response.status >= 500 && attempt < maxRetries) {
+          continue; // Retry on server errors
+        }
+        
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later.", code: "RATE_LIMIT" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Unable to process your query. Please try again.", code: "PROCESSING_ERROR" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Service quota exceeded. Please try again later.", code: "QUOTA_EXCEEDED" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      // Log detailed error server-side only
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+
+      const data = await response.json();
+      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
       
-      // Return generic error to client
+      if (!toolCall || toolCall.function.name !== "classify_query") {
+        console.error("Invalid AI response structure:", JSON.stringify(data));
+        lastError = "Invalid response structure";
+        
+        if (attempt < maxRetries) {
+          continue; // Retry on invalid response
+        }
+        
+        return new Response(
+          JSON.stringify({ error: "Unable to classify your query. Please try again.", code: "CLASSIFICATION_ERROR" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const classification: ClassificationResult = JSON.parse(toolCall.function.arguments);
+
       return new Response(
-        JSON.stringify({ error: "Unable to process your query. Please try again.", code: "PROCESSING_ERROR" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ classification, query: trimmedQuery }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
-    if (!toolCall || toolCall.function.name !== "classify_query") {
-      console.error("Invalid AI response structure:", JSON.stringify(data));
-      return new Response(
-        JSON.stringify({ error: "Unable to classify your query. Please try again.", code: "CLASSIFICATION_ERROR" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const classification: ClassificationResult = JSON.parse(toolCall.function.arguments);
-
+    // Should not reach here, but handle it
+    console.error("All retry attempts failed:", lastError);
     return new Response(
-      JSON.stringify({ classification, query: trimmedQuery }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Unable to classify your query. Please try again.", code: "CLASSIFICATION_ERROR" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     // Log detailed error server-side only
