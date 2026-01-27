@@ -1,16 +1,11 @@
 import { useState, useCallback, useMemo } from "react";
-import { ChatContainer, Message, DataIngestionPanel } from "@/components/chat";
+import { ChatContainer, Message } from "@/components/chat";
 import { DocumentUploadDialog } from "@/components/chat/DocumentUploadDialog";
-import { Scale, Menu, Database } from "lucide-react";
+import { Scale, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { classifyQuery } from "@/lib/classify-query";
 import { generateResponse } from "@/lib/generate-response";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -110,24 +105,9 @@ export default function Chat() {
             <span className="text-lg font-semibold text-foreground">ruleX</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Database className="h-4 w-4" />
-                <span className="hidden sm:inline">Data Sources</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[400px] sm:w-[540px]">
-              <div className="pt-6">
-                <DataIngestionPanel />
-              </div>
-            </SheetContent>
-          </Sheet>
-          <span className="hidden text-sm text-muted-foreground lg:inline">
-            AI-Powered Legal Reference
-          </span>
-        </div>
+        <span className="hidden text-sm text-muted-foreground lg:inline">
+          AI-Powered Legal Reference
+        </span>
       </header>
 
       {/* Chat Area */}
