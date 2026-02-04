@@ -128,9 +128,77 @@ async function searchDocumentChunks(
     document_id: c.document_id,
     content: c.content,
     metadata: c.metadata,
-    similarity: 0.7, // Estimated similarity for text search
+    similarity: 0.7,
     document_filename: c.documents?.filename || "Unknown",
   }));
+}
+
+// Search the web for legal information using Firecrawl
+async function searchWebForLegalInfo(query: string, keywords: string[]): Promise<{content: string; sources: string[]}> {
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  
+  if (!FIRECRAWL_API_KEY) {
+    console.log("Firecrawl API key not configured");
+    return { content: "", sources: [] };
+  }
+
+  try {
+    // Build a focused search query for Indian legal content
+    const searchQuery = `${query} site:indiacode.nic.in OR site:indiankanoon.org OR site:cbic.gov.in`;
+    
+    console.log("Searching web for:", searchQuery);
+
+    const response = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: searchQuery,
+        limit: 5,
+        scrapeOptions: {
+          formats: ["markdown"],
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Firecrawl search error:", response.status, await response.text());
+      return { content: "", sources: [] };
+    }
+
+    const data = await response.json();
+    const results = data.data || [];
+    
+    if (results.length === 0) {
+      console.log("No web results found");
+      return { content: "", sources: [] };
+    }
+
+    console.log(`Found ${results.length} web results`);
+
+    // Combine markdown content from results
+    const sources: string[] = [];
+    let combinedContent = "";
+
+    for (const result of results) {
+      if (result.markdown) {
+        // Limit each result to first 2000 chars to avoid token limits
+        const truncatedContent = result.markdown.slice(0, 2000);
+        combinedContent += `\n\n[Source: ${result.url}]\n${truncatedContent}`;
+        sources.push(result.url);
+      } else if (result.description) {
+        combinedContent += `\n\n[Source: ${result.url}]\n${result.title || ""}\n${result.description}`;
+        sources.push(result.url);
+      }
+    }
+
+    return { content: combinedContent, sources };
+  } catch (error) {
+    console.error("Web search error:", error);
+    return { content: "", sources: [] };
+  }
 }
 
 serve(async (req) => {
@@ -220,6 +288,7 @@ serve(async (req) => {
     // RAG: Search for relevant document chunks using text search
     let contextChunks: DocumentChunk[] = [];
     let contextText = "";
+    let webSources: string[] = [];
     
     try {
       // Use classification keywords for text-based search
@@ -230,10 +299,20 @@ serve(async (req) => {
       contextChunks = await searchDocumentChunks(supabase, userId, searchKeywords);
 
       if (contextChunks.length > 0) {
-        // Build context text
+        // Build context text from local documents
         contextText = contextChunks
           .map((c, i) => `[Source ${i + 1}: ${c.document_filename}]\n${c.content}`)
           .join("\n\n---\n\n");
+      } else {
+        // No local documents found - search the web for legal information
+        console.log("No local documents found, searching web...");
+        const webResults = await searchWebForLegalInfo(trimmedQuery, searchKeywords);
+        
+        if (webResults.content) {
+          contextText = webResults.content;
+          webSources = webResults.sources;
+          console.log(`Found ${webSources.length} web sources`);
+        }
       }
     } catch (ragError) {
       console.error("RAG search error:", ragError);
@@ -250,14 +329,15 @@ serve(async (req) => {
 `;
 
     if (contextText) {
-      contextMessage += `CONTEXT FROM VERIFIED DOCUMENTS:
+      const sourceType = contextChunks.length > 0 ? "VERIFIED DOCUMENTS" : "OFFICIAL GOVERNMENT WEBSITES";
+      contextMessage += `CONTEXT FROM ${sourceType}:
 ${contextText}
 
 ---
 
 `;
     } else {
-      contextMessage += `CONTEXT: No verified documents found for this query.
+      contextMessage += `CONTEXT: No verified documents or official web sources found for this query.
 
 `;
     }
@@ -321,16 +401,26 @@ ${contextText}
       );
     }
 
+    // Build sources list - include both local documents and web sources
+    const sources = contextChunks.length > 0
+      ? contextChunks.map(c => ({
+          filename: c.document_filename,
+          similarity: c.similarity,
+          type: "document" as const,
+        }))
+      : webSources.map(url => ({
+          filename: new URL(url).hostname,
+          url,
+          type: "web" as const,
+        }));
+
     return new Response(
       JSON.stringify({ 
         response: aiResponse,
         classification,
         query: trimmedQuery,
-        sourcesUsed: contextChunks.length,
-        sources: contextChunks.map(c => ({
-          filename: c.document_filename,
-          similarity: c.similarity,
-        })),
+        sourcesUsed: contextChunks.length || webSources.length,
+        sources,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
