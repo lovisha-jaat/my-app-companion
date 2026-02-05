@@ -11,6 +11,9 @@ export interface GenerateResponseResult {
   response: string;
   classification: QueryClassification;
   query: string;
+  sourceType?: "document" | "web" | "general";
+  sourcesUsed?: number;
+  sources?: Array<{ filename?: string; url?: string; type: "document" | "web" }>;
 }
 
 export async function generateResponse({

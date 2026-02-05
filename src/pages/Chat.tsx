@@ -118,6 +118,7 @@ export default function Chat() {
         role: "assistant",
         content: result.response,
         timestamp: new Date(),
+        sourceType: result.sourceType,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
