@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Scale, User, ShieldCheck } from "lucide-react";
+import { Scale, User, ShieldCheck, Globe, BookOpen, Brain } from "lucide-react";
 import {
   QueryClassification,
   DOMAIN_LABELS,
@@ -13,6 +13,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   classification?: QueryClassification;
+  sourceType?: "document" | "web" | "general";
 }
 
 interface ChatMessageProps {
@@ -21,6 +22,37 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const isGeneralKnowledge = !isUser && message.sourceType === "general";
+
+  const getSourceBadge = () => {
+    if (isUser || !message.sourceType) return null;
+    
+    switch (message.sourceType) {
+      case "document":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+            <BookOpen className="h-3 w-3" />
+            From Documents
+          </span>
+        );
+      case "web":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <Globe className="h-3 w-3" />
+            Official Sources
+          </span>
+        );
+      case "general":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <Brain className="h-3 w-3" />
+            General Knowledge
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div
@@ -34,11 +66,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
           isUser
             ? "bg-primary text-primary-foreground"
+            : isGeneralKnowledge
+            ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
             : "bg-accent text-accent-foreground"
         )}
       >
         {isUser ? (
           <User className="h-4 w-4" />
+        ) : isGeneralKnowledge ? (
+          <Brain className="h-4 w-4" />
         ) : (
           <Scale className="h-4 w-4" />
         )}
@@ -66,11 +102,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
             )}
           </div>
         )}
+        {/* Source badge for assistant messages */}
+        {!isUser && message.sourceType && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {getSourceBadge()}
+          </div>
+        )}
         <div
           className={cn(
             "rounded-2xl px-4 py-3",
             isUser
               ? "bg-chat-user text-chat-user-foreground rounded-br-md"
+              : isGeneralKnowledge
+              ? "bg-amber-50 dark:bg-amber-950/20 text-chat-bot-foreground rounded-bl-md border border-amber-200 dark:border-amber-800/50"
               : "bg-chat-bot text-chat-bot-foreground rounded-bl-md"
           )}
         >

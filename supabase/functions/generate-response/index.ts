@@ -6,27 +6,52 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Trusted Indian government legal sites for web search
+const TRUSTED_LEGAL_SITES = [
+  "indiacode.nic.in",
+  "indiankanoon.org",
+  "cbic.gov.in",
+  "gst.gov.in",
+  "incometaxindia.gov.in",
+  "rbi.org.in",
+  "mca.gov.in",
+  "sebi.gov.in",
+  "egazette.gov.in",
+  "lawmin.gov.in",
+  "legislative.gov.in",
+  "dor.gov.in",
+  "pib.gov.in",
+  "irdai.gov.in",
+  "epfindia.gov.in",
+  "labour.gov.in",
+];
+
 // ruleX System Prompt - Indian Laws and Finance AI Agent
 const RULEX_SYSTEM_PROMPT = `You are ruleX, an AI agent for Indian laws and finance.
 
 ROLE:
 Provide accurate information on Indian laws, GST, taxation, and finance.
 
-KNOWLEDGE USAGE:
-• Use ONLY the knowledge provided in the CONTEXT section below.
-• Do NOT use general AI knowledge or assumptions.
-• Do NOT guess or infer missing information.
+KNOWLEDGE USAGE (Priority Order):
+1. FIRST: Use the knowledge provided in the CONTEXT section below if available.
+2. SECOND: If no context is provided OR context doesn't answer the query, you MAY use your general training knowledge about Indian laws and finance.
 
 BEHAVIOR:
-• Answer only when exact, verified information exists in the provided context.
 • Always mention Act name and Section/Rule number when applicable.
 • Keep legal wording accurate and unchanged.
 • Be factual, neutral, and professional.
 • When citing from documents, mention the source document filename.
+• If using general knowledge (not from context), you MUST add this disclaimer at the end:
+⚠️ **Disclaimer**: This response is based on general AI knowledge and may not reflect the most current legal provisions. Please verify from official government sources.
 
 REFUSAL RULE:
-If the answer is not clearly available in the provided context, respond ONLY with:
-❌ No official government data is available for this query at the moment.
+ONLY refuse to answer if:
+- The query is completely unrelated to Indian law, finance, or government regulations
+- The query asks for personal legal advice for a specific case
+- The query is inappropriate or harmful
+
+If you must refuse, respond with:
+❌ This query is outside my scope. I can only assist with Indian laws, finance, and government regulations.
 
 TONE:
 Formal, precise, and authoritative.
@@ -34,7 +59,7 @@ Formal, precise, and authoritative.
 OUTPUT:
 • Clear and concise response
 • Structured sentences
-• No opinions, no advice, no speculation
+• No opinions, no personal advice, no speculation
 • Include source citations when using context`;
 
 // Input validation constants
@@ -143,8 +168,9 @@ async function searchWebForLegalInfo(query: string, keywords: string[]): Promise
   }
 
   try {
-    // Build a focused search query for Indian legal content
-    const searchQuery = `${query} site:indiacode.nic.in OR site:indiankanoon.org OR site:cbic.gov.in`;
+    // Build a focused search query for Indian legal content using trusted sites
+    const siteFilters = TRUSTED_LEGAL_SITES.map(site => `site:${site}`).join(" OR ");
+    const searchQuery = `${query} ${siteFilters}`;
     
     console.log("Searching web for:", searchQuery);
 
@@ -328,16 +354,20 @@ serve(async (req) => {
 
 `;
 
+    // Determine source type for response
+    let sourceType: "document" | "web" | "general" = "general";
+    
     if (contextText) {
-      const sourceType = contextChunks.length > 0 ? "VERIFIED DOCUMENTS" : "OFFICIAL GOVERNMENT WEBSITES";
-      contextMessage += `CONTEXT FROM ${sourceType}:
+      sourceType = contextChunks.length > 0 ? "document" : "web";
+      const sourceLabel = contextChunks.length > 0 ? "VERIFIED DOCUMENTS" : "OFFICIAL GOVERNMENT WEBSITES";
+      contextMessage += `CONTEXT FROM ${sourceLabel}:
 ${contextText}
 
 ---
 
 `;
     } else {
-      contextMessage += `CONTEXT: No verified documents or official web sources found for this query.
+      contextMessage += `CONTEXT: No verified documents or official web sources found for this query. You may use your general training knowledge about Indian laws and finance, but MUST include the disclaimer.
 
 `;
     }
@@ -419,6 +449,7 @@ ${contextText}
         response: aiResponse,
         classification,
         query: trimmedQuery,
+        sourceType,
         sourcesUsed: contextChunks.length || webSources.length,
         sources,
       }),
