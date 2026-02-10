@@ -158,21 +158,23 @@ async function searchDocumentChunks(
   }));
 }
 
-// Search the web for legal information using Firecrawl
+// Search the web for legal information using Firecrawl (optimized)
 async function searchWebForLegalInfo(query: string, keywords: string[]): Promise<{content: string; sources: string[]}> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   
   if (!FIRECRAWL_API_KEY) {
-    console.log("Firecrawl API key not configured");
+    console.log("Firecrawl API key not configured, skipping web search");
     return { content: "", sources: [] };
   }
 
   try {
-    // Build a focused search query for Indian legal content using trusted sites
-    const siteFilters = TRUSTED_LEGAL_SITES.map(site => `site:${site}`).join(" OR ");
-    const searchQuery = `${query} ${siteFilters}`;
+    // Use a short, focused search query - don't append all site filters (slows search)
+    const searchQuery = `${query} India law official`;
     
     console.log("Searching web for:", searchQuery);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout
 
     const response = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
@@ -182,12 +184,12 @@ async function searchWebForLegalInfo(query: string, keywords: string[]): Promise
       },
       body: JSON.stringify({
         query: searchQuery,
-        limit: 5,
-        scrapeOptions: {
-          formats: ["markdown"],
-        },
+        limit: 3, // Fewer results = faster
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       console.error("Firecrawl search error:", response.status, await response.text());
@@ -198,31 +200,29 @@ async function searchWebForLegalInfo(query: string, keywords: string[]): Promise
     const results = data.data || [];
     
     if (results.length === 0) {
-      console.log("No web results found");
       return { content: "", sources: [] };
     }
 
     console.log(`Found ${results.length} web results`);
 
-    // Combine markdown content from results
     const sources: string[] = [];
     let combinedContent = "";
 
     for (const result of results) {
-      if (result.markdown) {
-        // Limit each result to first 2000 chars to avoid token limits
-        const truncatedContent = result.markdown.slice(0, 2000);
-        combinedContent += `\n\n[Source: ${result.url}]\n${truncatedContent}`;
-        sources.push(result.url);
-      } else if (result.description) {
-        combinedContent += `\n\n[Source: ${result.url}]\n${result.title || ""}\n${result.description}`;
+      const text = result.markdown || result.description || "";
+      if (text) {
+        combinedContent += `\n\n[Source: ${result.url}]\n${result.title || ""}\n${text.slice(0, 1500)}`;
         sources.push(result.url);
       }
     }
 
     return { content: combinedContent, sources };
   } catch (error) {
-    console.error("Web search error:", error);
+    if (error.name === "AbortError") {
+      console.log("Web search timed out, using general knowledge");
+    } else {
+      console.error("Web search error:", error);
+    }
     return { content: "", sources: [] };
   }
 }
@@ -317,32 +317,33 @@ serve(async (req) => {
     let webSources: string[] = [];
     
     try {
-      // Use classification keywords for text-based search
       const searchKeywords = classification.keywords.length > 0 
         ? classification.keywords 
         : trimmedQuery.split(/\s+/).filter(w => w.length > 2);
       
+      // Search local documents first (fast)
       contextChunks = await searchDocumentChunks(supabase, userId, searchKeywords);
 
       if (contextChunks.length > 0) {
-        // Build context text from local documents
         contextText = contextChunks
           .map((c, i) => `[Source ${i + 1}: ${c.document_filename}]\n${c.content}`)
           .join("\n\n---\n\n");
       } else {
-        // No local documents found - search the web for legal information
-        console.log("No local documents found, searching web...");
+        // Try web search with a tight timeout - don't block on it
+        console.log("No local documents found, trying web search...");
         const webResults = await searchWebForLegalInfo(trimmedQuery, searchKeywords);
         
         if (webResults.content) {
           contextText = webResults.content;
           webSources = webResults.sources;
           console.log(`Found ${webSources.length} web sources`);
+        } else {
+          console.log("No web results, will use general knowledge");
         }
       }
     } catch (ragError) {
       console.error("RAG search error:", ragError);
-      // Continue without context - will trigger refusal response
+      // Continue without context - general knowledge will be used
     }
 
     // Build context message with classification info and retrieved context
