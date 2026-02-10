@@ -188,7 +188,7 @@ async function searchWebForLegalInfo(query: string, keywords: string[]): Promise
     console.log("Searching web for:", searchQuery);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout
+    const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
 
     const response = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
@@ -198,7 +198,11 @@ async function searchWebForLegalInfo(query: string, keywords: string[]): Promise
       },
       body: JSON.stringify({
         query: searchQuery,
-        limit: 3, // Fewer results = faster
+        limit: 3,
+        scrapeOptions: {
+          formats: ["markdown"],
+          onlyMainContent: true,
+        },
       }),
       signal: controller.signal,
     });
