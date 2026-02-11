@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Scale, User, ShieldCheck, Globe, BookOpen, Brain } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import {
   QueryClassification,
   DOMAIN_LABELS,
@@ -118,9 +119,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
               : "bg-chat-bot text-chat-bot-foreground rounded-bl-md"
           )}
         >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            {message.content}
-          </p>
+          {isUser ? (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {message.content}
+            </p>
+          ) : (
+            <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed [&>p]:mb-2 [&>p:last-child]:mb-0 [&>h1]:text-base [&>h1]:font-semibold [&>h1]:mb-2 [&>h2]:text-sm [&>h2]:font-semibold [&>h2]:mb-1.5 [&>h3]:text-sm [&>h3]:font-medium [&>h3]:mb-1 [&>ul]:mb-2 [&>ul]:pl-4 [&>ol]:mb-2 [&>ol]:pl-4 [&>li]:mb-0.5 [&>blockquote]:border-l-2 [&>blockquote]:border-primary/30 [&>blockquote]:pl-3 [&>blockquote]:italic [&>blockquote]:text-muted-foreground">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            </div>
+          )}
           <span
             className={cn(
               "mt-1 block text-xs",
