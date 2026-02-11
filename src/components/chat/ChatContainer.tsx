@@ -39,7 +39,7 @@ export function ChatContainer({
                 <Scale className="h-8 w-8 text-primary" />
               </div>
               <h2 className="mb-2 text-xl font-semibold text-foreground">
-                Welcome to ruleX
+                Welcome to BharatTrack
               </h2>
               <p className="mb-8 max-w-md text-center text-muted-foreground">
                 Your AI-powered legal companion for Indian finance and government laws.
