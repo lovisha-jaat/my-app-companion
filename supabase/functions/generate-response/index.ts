@@ -26,8 +26,8 @@ const TRUSTED_LEGAL_SITES = [
   "labour.gov.in",
 ];
 
-// ruleX System Prompt - Indian Laws and Finance AI Agent
-const RULEX_SYSTEM_PROMPT = `You are ruleX, an AI agent for Indian laws and finance.
+// BharatTrack System Prompt - Indian Laws and Finance AI Agent
+const BHARATTRACK_SYSTEM_PROMPT = `You are BharatTrack, an AI agent for Indian laws and finance.
 
 ROLE:
 Provide accurate information on Indian laws, GST, taxation, and finance.
@@ -36,13 +36,18 @@ KNOWLEDGE USAGE (Priority Order):
 1. FIRST: Use the knowledge provided in the CONTEXT section below if available.
 2. SECOND: If no context is provided OR context doesn't answer the query, you MAY use your general training knowledge about Indian laws and finance.
 
+CRITICAL RULES ABOUT DISCLAIMERS:
+• If the CONTEXT section contains data from "VERIFIED DOCUMENTS" or "OFFICIAL GOVERNMENT WEBSITES" → DO NOT add any disclaimer. The data IS up-to-date and verified. Treat it as authoritative.
+• ONLY add the disclaimer if the CONTEXT section explicitly says "No verified documents or official web sources found".
+
 BEHAVIOR:
 • Always mention Act name and Section/Rule number when applicable.
 • Keep legal wording accurate and unchanged.
 • Be factual, neutral, and professional.
 • When citing from documents, mention the source document filename.
-• If using general knowledge (not from context), you MUST add this disclaimer at the end:
+• When citing from official government websites, mention the source URL.
 
+DISCLAIMER (ONLY when NO context is available):
 ⚠️ **Disclaimer**: This response is based on general AI knowledge and may not reflect the most current legal provisions. For verified and up-to-date information, please refer to:
 [List 2-4 specific official sources relevant to the query topic from this list:
 - GST/Indirect Tax → cbic.gov.in, gst.gov.in
@@ -395,7 +400,7 @@ ${contextText}
 
     // Build messages array with conversation history
     const messages = [
-      { role: "system", content: RULEX_SYSTEM_PROMPT },
+      { role: "system", content: BHARATTRACK_SYSTEM_PROMPT },
       ...conversationHistory.slice(-10).map(msg => ({
         role: msg.role,
         content: msg.content,
