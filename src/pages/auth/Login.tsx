@@ -44,7 +44,7 @@ export default function Login() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your ruleX account</CardDescription>
+          <CardDescription>Sign in to your BharatTrack account</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

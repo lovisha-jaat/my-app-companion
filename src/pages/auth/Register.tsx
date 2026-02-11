@@ -80,7 +80,7 @@ export default function Register() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-          <CardDescription>Start your legal research journey with ruleX</CardDescription>
+          <CardDescription>Start your legal research journey with BharatTrack</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

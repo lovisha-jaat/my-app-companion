@@ -239,7 +239,7 @@ export default function Chat() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                 <Scale className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="text-lg font-semibold text-foreground">ruleX</span>
+              <span className="text-lg font-semibold text-foreground">BharatTrack</span>
             </div>
           </div>
           <span className="hidden text-sm text-muted-foreground lg:inline">

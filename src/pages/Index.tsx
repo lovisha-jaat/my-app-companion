@@ -12,7 +12,7 @@ const Index = () => {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Scale className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">ruleX</span>
+            <span className="text-xl font-bold text-foreground">BharatTrack</span>
           </div>
           <nav className="flex items-center gap-4">
             <Link to="/chat">
@@ -79,7 +79,7 @@ const Index = () => {
       <footer className="border-t px-4 py-8">
         <div className="mx-auto max-w-6xl text-center text-sm text-muted-foreground">
           <p>
-            ruleX provides information from official government sources. 
+            BharatTrack provides information from official government sources. 
             This is not legal advice. Always consult a qualified professional.
           </p>
         </div>

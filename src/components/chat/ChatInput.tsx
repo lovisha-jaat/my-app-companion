@@ -89,7 +89,7 @@ export function ChatInput({
           </Button>
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          ruleX provides information from official government sources only. Not legal advice.
+          BharatTrack provides information from official government sources only. Not legal advice.
         </p>
       </div>
     </div>
