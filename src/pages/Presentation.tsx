@@ -318,9 +318,208 @@ function Slide2() {
 }
 
 /* ═══════════════════════════════════════════
+   SLIDE 3 — Uniqueness / USPs
+   ═══════════════════════════════════════════ */
+function Slide3() {
+  const usps = [
+    {
+      icon: "🚫",
+      title: "Zero Hallucination Guarantee",
+      desc: "Unlike ChatGPT or generic AI, BharatTrack ONLY uses verified government sources. If data isn't available, it refuses to answer rather than guessing.",
+      color: "bg-red-500",
+    },
+    {
+      icon: "📎",
+      title: "Auto Legal Citations",
+      desc: "Every response includes Act name, Section number, Year, and direct source URL — ready for courtroom or compliance use.",
+      color: "bg-blue-600",
+    },
+    {
+      icon: "🏛️",
+      title: "Real-Time Gov Data Scraping",
+      desc: "Firecrawl API scrapes 16+ official domains (IndiaCode, RBI, SEBI, CBIC) in real-time — always up-to-date, never stale.",
+      color: "bg-emerald-600",
+    },
+    {
+      icon: "📄",
+      title: "Upload & Query Your Own PDFs",
+      desc: "Users can upload government gazettes, circulars, or notices and ask questions directly against those documents.",
+      color: "bg-amber-600",
+    },
+    {
+      icon: "🔒",
+      title: "3-Tier Source Transparency",
+      desc: "Every answer is tagged: ✅ From Documents, ✅ From Gov Sites, or ⚠️ General Knowledge with mandatory disclaimer. Users always know the source.",
+      color: "bg-purple-600",
+    },
+    {
+      icon: "📱",
+      title: "PWA — No App Store Needed",
+      desc: "Install directly from browser. Works offline for saved chats & bookmarks. No Play Store / App Store dependency.",
+      color: "bg-cyan-600",
+    },
+  ];
+
+  return (
+    <div className="relative w-full h-full p-16 flex flex-col" style={{ background: "linear-gradient(135deg, #f0f4ff 0%, #fef3c7 100%)" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#1e3a8a] flex items-center justify-center">
+            <Scale className="w-9 h-9 text-white" />
+          </div>
+          <div>
+            <h1 className="text-5xl font-extrabold text-[#1e3a8a] tracking-tight">BharatTrack</h1>
+            <p className="text-xl text-gray-500 mt-1">What Makes Us Different</p>
+          </div>
+        </div>
+        <div className="text-right px-6 py-3 rounded-xl bg-[#1e3a8a]/10 border border-[#1e3a8a]/20">
+          <p className="text-lg font-bold text-[#1e3a8a]">Unique Selling Points</p>
+        </div>
+      </div>
+
+      {/* USP Grid */}
+      <div className="flex-1 grid grid-cols-3 gap-6">
+        {usps.map((u, i) => (
+          <div key={i} className="rounded-2xl bg-white border border-gray-200 shadow-lg p-7 flex flex-col">
+            <div className="flex items-center gap-4 mb-4">
+              <div className={`w-14 h-14 rounded-xl ${u.color} flex items-center justify-center text-3xl`}>
+                {u.icon}
+              </div>
+              <h3 className="text-xl font-extrabold text-gray-900 leading-tight">{u.title}</h3>
+            </div>
+            <p className="text-base text-gray-600 leading-relaxed flex-1">{u.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom Comparison */}
+      <div className="mt-8 rounded-2xl bg-[#1e3a8a] text-white p-6 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <span className="text-3xl">⚖️</span>
+          <div>
+            <p className="text-xl font-bold">Why Not Just Use ChatGPT?</p>
+            <p className="text-sm opacity-80 mt-1">ChatGPT hallucinates legal data, has no Indian law specialization, no citations, and no source verification.</p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <span className="px-4 py-2 rounded-full bg-white/20 text-sm font-bold">❌ No Citations</span>
+          <span className="px-4 py-2 rounded-full bg-white/20 text-sm font-bold">❌ Hallucinations</span>
+          <span className="px-4 py-2 rounded-full bg-white/20 text-sm font-bold">❌ Outdated Data</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   SLIDE 4 — Scalability
+   ═══════════════════════════════════════════ */
+function Slide4() {
+  const phases = [
+    {
+      phase: "Phase 1",
+      label: "Current MVP",
+      color: "bg-[#1e3a8a]",
+      borderColor: "border-[#1e3a8a]",
+      items: ["AI Chatbot with RAG", "PDF Upload & Query", "16+ Gov Domains", "Bookmarks & History", "PWA Support"],
+    },
+    {
+      phase: "Phase 2",
+      label: "Short-Term (3–6 mo)",
+      color: "bg-[#6d28d9]",
+      borderColor: "border-[#6d28d9]",
+      items: ["Multi-language Support (Hindi, Tamil, etc.)", "Voice Input & Accessibility", "Admin Dashboard & Analytics", "API for Third-Party Integration", "Push Notifications"],
+    },
+    {
+      phase: "Phase 3",
+      label: "Mid-Term (6–12 mo)",
+      color: "bg-[#059669]",
+      borderColor: "border-[#059669]",
+      items: ["State-Level Law Coverage (All 28 States)", "Case Law Integration (Indian Kanoon)", "Compliance Checker for Businesses", "Legal Document Generator", "Subscription & Freemium Model"],
+    },
+    {
+      phase: "Phase 4",
+      label: "Long-Term (12+ mo)",
+      color: "bg-[#d97706]",
+      borderColor: "border-[#d97706]",
+      items: ["B2B SaaS for Law Firms & CAs", "Gov Department Partnerships", "Expand to Other Countries", "AI Legal Assistant (Proactive Alerts)", "Mobile Native App (iOS & Android)"],
+    },
+  ];
+
+  const techScale = [
+    { icon: "🗄️", label: "Supabase Auto-Scaling", desc: "PostgreSQL scales horizontally with read replicas" },
+    { icon: "⚡", label: "Edge Functions", desc: "Serverless — scales to zero, handles spikes automatically" },
+    { icon: "🧠", label: "AI Model Swap", desc: "Modular design — switch Gemini → GPT-4 → Claude easily" },
+    { icon: "🌐", label: "CDN + PWA", desc: "Static assets cached globally, instant load times" },
+    { icon: "🔄", label: "Microservices Ready", desc: "Each Edge Function is independent, can be split further" },
+    { icon: "📊", label: "Usage-Based Pricing", desc: "Pay per query model — costs scale linearly with users" },
+  ];
+
+  return (
+    <div className="relative w-full h-full p-16 flex flex-col" style={{ background: "linear-gradient(135deg, #f0f4ff 0%, #ecfdf5 100%)" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#1e3a8a] flex items-center justify-center">
+            <Scale className="w-9 h-9 text-white" />
+          </div>
+          <div>
+            <h1 className="text-5xl font-extrabold text-[#1e3a8a] tracking-tight">BharatTrack</h1>
+            <p className="text-xl text-gray-500 mt-1">Growth & Scalability Roadmap</p>
+          </div>
+        </div>
+        <div className="text-right px-6 py-3 rounded-xl bg-[#1e3a8a]/10 border border-[#1e3a8a]/20">
+          <p className="text-lg font-bold text-[#1e3a8a]">How We Scale</p>
+        </div>
+      </div>
+
+      {/* Roadmap Timeline */}
+      <div className="grid grid-cols-4 gap-5 mb-8">
+        {phases.map((p, i) => (
+          <div key={i} className={`rounded-2xl border-2 ${p.borderColor} bg-white shadow-lg overflow-hidden`}>
+            <div className={`${p.color} text-white px-5 py-3 text-center`}>
+              <p className="text-xs font-bold opacity-80">{p.phase}</p>
+              <p className="text-lg font-extrabold">{p.label}</p>
+            </div>
+            <ul className="p-4 space-y-2">
+              {p.items.map((item, j) => (
+                <li key={j} className="flex items-start gap-2 text-sm text-gray-700">
+                  <span className="mt-0.5 text-green-500 font-bold">✓</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      {/* Arrow */}
+      <div className="flex items-center justify-center mb-6">
+        <div className="flex items-center gap-2 px-6 py-2 rounded-full bg-[#1e3a8a]/10 border border-[#1e3a8a]/20">
+          <span className="text-2xl">🏗️</span>
+          <span className="text-lg font-bold text-[#1e3a8a]">Technical Scalability</span>
+        </div>
+      </div>
+
+      {/* Tech Scalability Grid */}
+      <div className="grid grid-cols-6 gap-4">
+        {techScale.map((t, i) => (
+          <div key={i} className="rounded-xl bg-white border border-gray-200 shadow-sm p-4 text-center">
+            <span className="text-3xl">{t.icon}</span>
+            <p className="text-sm font-bold text-gray-900 mt-2">{t.label}</p>
+            <p className="text-[11px] text-gray-500 mt-1 leading-snug">{t.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    PRESENTATION SHELL
    ═══════════════════════════════════════════ */
-const slides = [Slide1, Slide2];
+const slides = [Slide1, Slide2, Slide3, Slide4];
 
 export default function Presentation() {
   const [current, setCurrent] = useState(0);
